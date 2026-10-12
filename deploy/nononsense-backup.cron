@@ -1,0 +1,2 @@
+# nightly dump of the NoNonsenseMusic database, kept 14 days
+30 3 * * * nnm pg_dump -Fc music > /var/backups/nononsense/music-$(date +\%F).dump && find /var/backups/nononsense -name 'music-*.dump' -mtime +14 -delete

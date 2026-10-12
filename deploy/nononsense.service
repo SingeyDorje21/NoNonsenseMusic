@@ -1,0 +1,21 @@
+[Unit]
+Description=NoNonsenseMusic backend (FastAPI)
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+User=nnm
+Group=nnm
+WorkingDirectory=/opt/nnm/app/backend
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/nnm/app/backend/src
+# one worker: jams, live notifications and rate limits live in this process's memory
+ExecStart=/opt/nnm/app/backend/.venv/bin/uvicorn nn_guard:app --app-dir /opt/nnm/guard --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --no-proxy-headers --ws-max-size 262144
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
