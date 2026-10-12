@@ -1,7 +1,0 @@
-#!/bin/sh
-# Pull the latest NoNonsenseMusic, install its locked dependencies, restart, and wait for /health.
-set -e
-sudo -u nnm -H sh -c 'cd ~/app && git pull --ff-only && cd backend && ~/.local/bin/uv sync --frozen --no-dev --no-install-project'
-systemctl restart nononsense
-for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && echo && exit 0; sleep 1; done
-echo "backend did not come back; see: journalctl -u nononsense -n 50" >&2; exit 1
