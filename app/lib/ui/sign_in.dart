@@ -321,7 +321,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
               ],
             )
-          : Center(child: form),
+          // scrolls when the window is shorter than the form, which overflowed it
+          : Center(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: form)),
     );
   }
 }

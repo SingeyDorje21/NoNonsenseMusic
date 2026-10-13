@@ -63,13 +63,17 @@ class _SongRowState extends State<SongRow> {
           track,
           play,
         ), // a phone has no right button
-        child: Container(
-          height: 56,
+        // Aligned to the top so the row keeps its own height: a list gives each row its whole extent, and the row
+        // filled it, leaving no gap between a phone's cards
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Container(
+          height: songRowExtent(context) - songRowGap(context),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: phone
                 ? theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.38,
+                    alpha: theme.brightness == Brightness.dark ? 0.38 : 0.7,
                   )
                 : hovering
                 ? theme.colorScheme.onSurface.withValues(alpha: 0.05)
@@ -174,6 +178,7 @@ class _SongRowState extends State<SongRow> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),

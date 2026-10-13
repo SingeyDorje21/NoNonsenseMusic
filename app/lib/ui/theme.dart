@@ -70,7 +70,8 @@ ThemeData buildTheme(Brightness b, Color? song) {
         fontWeight: FontWeight.w600,
         letterSpacing: -0.2,
       ),
-      bodySmall: t.bodySmall?.copyWith(color: ink.withValues(alpha: 0.58)),
+      // small text needs 4.5 to 1 against the surface: 0.58 gave about 4.4 on the light one, 0.66 gives 5.7
+      bodySmall: t.bodySmall?.copyWith(color: ink.withValues(alpha: 0.66)),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(

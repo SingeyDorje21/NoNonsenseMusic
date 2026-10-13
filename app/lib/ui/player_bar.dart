@@ -107,8 +107,8 @@ class PlayerBar extends StatelessWidget {
                         onPressed: p.previous,
                       ),
                       SizedBox(
-                        width: 42,
-                        height: 42,
+                        width: 48, // a finger's target, as the buttons beside it are
+                        height: 48,
                         child: Material(
                           color: ink,
                           shape: const CircleBorder(),
@@ -312,6 +312,12 @@ class Transport extends StatelessWidget {
     final theme = Theme.of(context);
     final ink = theme.colorScheme.onSurface;
     final accent = theme.colorScheme.primary;
+    // Under a finger no control is smaller than 48: the compact row's shuffle and repeat were 40, its disc 44
+    final touch = theme.platform == TargetPlatform.android || theme.platform == TargetPlatform.iOS;
+    final modeBox = touch && size * 2.2 < 48 ? 48.0 : size * 2.2;
+    final disc = touch && play < 48 ? 48.0 : play;
+    // what the larger targets add comes out of the four gaps: the row is no wider, and still fits a narrow phone
+    final gap = (size * 0.4 - ((modeBox - size * 2.2) * 2 + (disc - play)) / 4).clamp(0.0, size);
     return ListenableBuilder(
       listenable: p,
       builder: (context, _) {
@@ -323,8 +329,8 @@ class Transport extends StatelessWidget {
                 onTap: tap,
                 radius: size,
                 child: SizedBox(
-                  width: size * 2.2,
-                  height: size * 2.2,
+                  width: modeBox,
+                  height: modeBox,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -366,17 +372,17 @@ class Transport extends StatelessWidget {
               q.isShuffled,
               p.toggleShuffle,
             ),
-            SizedBox(width: size * 0.4),
+            SizedBox(width: gap),
             skip(FluentIcons.previous_24_filled, 'Previous', p.previous),
-            SizedBox(width: size * 0.4),
+            SizedBox(width: gap),
             // The solid disc is the control the eye finds first.
             SizedBox(
-              width: play,
-              height: play,
+              width: disc,
+              height: disc,
               child: p.isBuffering
                   ? Center(
                       child: Waiting(
-                        size: play * 0.55,
+                        size: disc * 0.55,
                         tooltip: 'Loading the song…',
                       ),
                     )
@@ -392,16 +398,16 @@ class Transport extends StatelessWidget {
                             p.isPlaying
                                 ? FluentIcons.pause_24_filled
                                 : FluentIcons.play_24_filled,
-                            size: play * 0.5,
+                            size: disc * 0.5,
                             color: theme.colorScheme.surface,
                           ),
                         ),
                       ),
                     ),
             ),
-            SizedBox(width: size * 0.4),
+            SizedBox(width: gap),
             skip(FluentIcons.next_24_filled, 'Next', p.next),
-            SizedBox(width: size * 0.4),
+            SizedBox(width: gap),
             mode(
               q.repeat == Repeat.one
                   ? FluentIcons.arrow_repeat_1_24_regular

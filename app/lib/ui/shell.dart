@@ -417,7 +417,13 @@ class _ShellState extends State<Shell> {
                             ),
                             child: GlassSurface(
                               radius: 28,
-                              child: NavigationBar(
+                              // the bar pads itself by the system's insets, top and bottom; the bottom one is already
+                              // given above, and the status bar's stood as an empty band over the icons (13 Oct)
+                              child: MediaQuery.removePadding(
+                                context: context,
+                                removeTop: true,
+                                removeBottom: true,
+                                child: NavigationBar(
                                 selectedIndex: switch (section) {
                                   Section.home => 0,
                                   Section.search => 1,
@@ -461,6 +467,7 @@ class _ShellState extends State<Shell> {
                                     label: 'Settings',
                                   ),
                                 ],
+                              ),
                               ),
                             ),
                           ),

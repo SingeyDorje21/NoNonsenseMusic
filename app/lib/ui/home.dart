@@ -37,8 +37,18 @@ class Home extends StatelessWidget {
         final cardSize = phone
             ? (MediaQuery.sizeOf(context).width - 52) / 2
             : 148.0;
+        final side = gutter(context);
+        // The list itself has no side padding: the shelves scroll to the window's edge, and everything else is
+        // inset by the gutter. Inside padded sides, a shelf's cards were cut off short of the edge (13 Oct)
+        Widget inset(Widget child) => Padding(
+          padding: EdgeInsets.symmetric(horizontal: side),
+          child: child,
+        );
+        // a tile's two lines of text under its cover, at the user's text size
+        final scaler = MediaQuery.textScalerOf(context);
+        final tileText = (scaler.scale(14) + scaler.scale(12)) * 1.45;
         Widget title(String t) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: EdgeInsets.fromLTRB(side, 0, side, 10),
           child: Text(
             t,
             style: theme.textTheme.titleLarge?.copyWith(
@@ -47,40 +57,47 @@ class Home extends StatelessWidget {
           ),
         );
         return ListView(
-          padding: EdgeInsets.fromLTRB(
-            phone ? 20 : 32,
-            28,
-            phone ? 20 : 32,
-            bottomClearance(context),
+          padding: EdgeInsets.only(
+            top: phone ? phoneTop : 28,
+            bottom: bottomClearance(context),
           ),
           children: [
-            Text(
-              greeting(DateTime.now()),
-              style: theme.textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+            inset(
+              Text(
+                greeting(DateTime.now()),
+                style: theme.textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            const SizedBox(height: 28),
+            SizedBox(height: phone ? 20 : 28),
             if (!lib.reachable)
-              const _Note(
-                'Can\'t reach your server',
-                'Your library lives on it.',
-                FluentIcons.plug_disconnected_24_regular,
+              inset(
+                const _Note(
+                  'Can\'t reach your server',
+                  'Your library lives on it.',
+                  FluentIcons.plug_disconnected_24_regular,
+                ),
               )
             else if (recent.isEmpty && liked.isEmpty && lib.playlists.isEmpty)
-              const _Note(
-                'Your music lives here',
-                'Search for a song you love, then play it, like it, or add it to a playlist.',
-                FluentIcons.music_note_2_24_regular,
+              inset(
+                const _Note(
+                  'Your music lives here',
+                  'Search for a song you love, then play it, like it, or add it to a playlist.',
+                  FluentIcons.music_note_2_24_regular,
+                ),
               ),
             if (recent.isNotEmpty) ...[
               title('Jump back in'),
               SizedBox(
-                height: phone ? 224 : 210,
+                // the cover and the gaps around it, then the text
+                height: 172 + tileText,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none, // a card's shadow falls below the shelf: cut off, it drew as a band
+                  padding: EdgeInsets.symmetric(horizontal: side),
                   itemCount: recent.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 20),
+                  separatorBuilder: (_, _) => SizedBox(width: phone ? 12 : 20),
                   itemBuilder: (_, i) => _CoverTile(
                     track: recent[i],
                     onPlay: () => s.player.play(
@@ -94,49 +111,55 @@ class Home extends StatelessWidget {
             ],
             if (lib.ownPlaylistsOnly.isNotEmpty) ...[
               title('Your playlists'),
-              Wrap(
-                spacing: phone ? 12 : 22,
-                runSpacing: phone ? 12 : 22,
-                children: [
-                  for (final p in lib.ownPlaylistsOnly)
-                    _PlaylistCard(
-                      playlist: p,
-                      size: cardSize,
-                      onOpen: () => openPlaylist(p.id),
-                    ),
-                ],
+              inset(
+                Wrap(
+                  spacing: phone ? 12 : 22,
+                  runSpacing: phone ? 12 : 22,
+                  children: [
+                    for (final p in lib.ownPlaylistsOnly)
+                      _PlaylistCard(
+                        playlist: p,
+                        size: cardSize,
+                        onOpen: () => openPlaylist(p.id),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 32),
             ],
             if (lib.pinnedAlbums.isNotEmpty) ...[
               title('Pinned Albums'),
-              Wrap(
-                spacing: phone ? 12 : 22,
-                runSpacing: phone ? 12 : 22,
-                children: [
-                  for (final p in lib.pinnedAlbums)
-                    _PlaylistCard(
-                      playlist: p,
-                      size: cardSize,
-                      onOpen: () => openPlaylist(p.id),
-                    ),
-                ],
+              inset(
+                Wrap(
+                  spacing: phone ? 12 : 22,
+                  runSpacing: phone ? 12 : 22,
+                  children: [
+                    for (final p in lib.pinnedAlbums)
+                      _PlaylistCard(
+                        playlist: p,
+                        size: cardSize,
+                        onOpen: () => openPlaylist(p.id),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 32),
             ],
             if (lib.sharedPlaylists.isNotEmpty) ...[
               title('Shared with you'),
-              Wrap(
-                spacing: phone ? 12 : 22,
-                runSpacing: phone ? 12 : 22,
-                children: [
-                  for (final p in lib.sharedPlaylists)
-                    _PlaylistCard(
-                      playlist: p,
-                      size: cardSize,
-                      onOpen: () => openPlaylist(p.id),
-                    ),
-                ],
+              inset(
+                Wrap(
+                  spacing: phone ? 12 : 22,
+                  runSpacing: phone ? 12 : 22,
+                  children: [
+                    for (final p in lib.sharedPlaylists)
+                      _PlaylistCard(
+                        playlist: p,
+                        size: cardSize,
+                        onOpen: () => openPlaylist(p.id),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 32),
             ],
@@ -146,6 +169,7 @@ class Home extends StatelessWidget {
                 height: 3 * 62,
                 child: GridView.builder(
                   scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.symmetric(horizontal: side),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     mainAxisExtent: 300,

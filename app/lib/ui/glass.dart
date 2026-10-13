@@ -10,6 +10,12 @@ class PhoneBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dark = scheme.brightness == Brightness.dark;
+    // The tint is laid on the surface, not left see-through: nothing is behind this on Android, so a see-through
+    // middle drew as black and the light theme's dark text could not be read on it (13 Oct)
+    final tint = Color.alphaBlend(
+      scheme.primary.withValues(alpha: dark ? 0.16 : 0.12),
+      dark ? const Color(0xFF10131C) : scheme.surface,
+    );
     return IgnorePointer(
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -17,16 +23,8 @@ class PhoneBackdrop extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: dark
-                ? [
-                    const Color(0xFF10131C),
-                    scheme.primary.withValues(alpha: 0.16),
-                    const Color(0xFF10131C),
-                  ]
-                : [
-                    const Color(0xFFF8FAFF),
-                    scheme.primary.withValues(alpha: 0.12),
-                    const Color(0xFFF0F3FA),
-                  ],
+                ? [const Color(0xFF10131C), tint, const Color(0xFF10131C)]
+                : [const Color(0xFFF8FAFF), tint, const Color(0xFFF0F3FA)],
             stops: const [0, 0.48, 1],
           ),
         ),
@@ -76,8 +74,11 @@ class GlassSurface extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: shape,
+              // a light surface on a light backdrop: an ink line marks its edge, a white one would not show
               border: Border.all(
-                color: Colors.white.withValues(alpha: dark ? 0.14 : 0.78),
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.14)
+                    : scheme.onSurface.withValues(alpha: 0.07),
               ),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
