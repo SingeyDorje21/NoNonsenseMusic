@@ -24,4 +24,12 @@ void main() {
     expect(s.server, 'https://music.example.com');
     expect(Api.base, 'https://music.example.com');
   });
+
+  test('the old localhost default moves to the configured server', () async {
+    SharedPreferences.setMockInitialValues({'server': 'http://127.0.0.1:8000'});
+    final s = Settings();
+    await s.load();
+    expect(s.server, Api.defaultServer);
+    expect(Api.base, Api.defaultServer);
+  });
 }
