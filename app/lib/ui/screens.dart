@@ -159,7 +159,7 @@ class _SongListScreenState extends State<SongListScreen> {
       listenable: Listenable.merge([s.library, _filter]),
       builder: (context, _) {
         final tracks = (liked ? s.library.liked : s.library.recent).map((x) => x.track).toList();
-        // Filter narrows the rows; playing one plays what is shown, in that order
+        // Search narrows the rows; playing one plays what is shown, in that order
         final shown = _filter.text.isEmpty ? tracks : [for (final t in tracks) if (songMatches(t, _filter.text)) t];
         final title = liked ? 'Liked Songs' : 'Recently Played';
         if (tracks.isEmpty) {
@@ -177,7 +177,7 @@ class _SongListScreenState extends State<SongListScreen> {
                 final heading = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(title, style: theme.textTheme.headlineLarge),
                   const SizedBox(height: 4),
-                  Text('${tracks.length} songs', style: theme.textTheme.bodySmall?.copyWith(fontSize: 13.5)),
+                  Text(songCount(tracks.length), style: theme.textTheme.bodySmall?.copyWith(fontSize: 13.5)),
                 ]);
                 final actions = Wrap(spacing: 10, runSpacing: 8, children: [
                   FilledButton.icon(onPressed: () => s.player.play(tracks, wholeList: true), icon: const Icon(FluentIcons.play_24_filled, size: 16), label: const Text('Play')),

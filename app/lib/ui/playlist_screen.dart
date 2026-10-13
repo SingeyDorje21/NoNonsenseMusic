@@ -169,7 +169,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
           if (tracks.isEmpty)
             SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(40), child: Center(child: Text('No songs yet. ${phone ? 'Press and hold' : 'Right-click'} any song › Add to Playlist.', textAlign: TextAlign.center))))
           else if (_filter.text.isNotEmpty)
-            // Filter narrows the rows: playing one plays what is shown (as its own queue, not kept in step with the
+            // Search narrows the rows: playing one plays what is shown (as its own queue, not kept in step with the
             // playlist, which would bring the hidden songs back); no dragging while some songs are hidden
             Builder(builder: (context) {
               final shown = [for (var i = 0; i < tracks.length; i++) if (songMatches(tracks[i], _filter.text)) i];

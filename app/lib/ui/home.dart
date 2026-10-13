@@ -170,9 +170,11 @@ class Home extends StatelessWidget {
                 child: GridView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsets.symmetric(horizontal: side),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    mainAxisExtent: 300,
+                    // a phone shows most of a column and a clear part of the next (a 300-point column left a clipped
+                    // cover)
+                    mainAxisExtent: phone ? (MediaQuery.sizeOf(context).width - 2 * side) * 0.86 : 300,
                     crossAxisSpacing: 4,
                     mainAxisSpacing: 16,
                   ),
@@ -268,20 +270,27 @@ class _PlaylistCardState extends State<_PlaylistCard> {
   PlaylistSummary get playlist => widget.playlist;
   VoidCallback get onOpen => widget.onOpen;
 
-  // A pinned album shows its own cover, which needs its songs: they are loaded once when its card first shows.
+  // The cover is made from the songs' covers, so the songs are loaded when the card first shows and again when the
+  // count changes, as on the Mac. Only pinned albums loaded theirs: a playlist of 121 songs showed a blank cover (13 Oct)
   @override
   void initState() {
     super.initState();
-    if (playlist.isAlbum) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final library = Scope.of(context).library;
-        if (library.details[playlist.id] == null) {
-          library.loadPlaylist(playlist.id);
-        }
-      });
-    }
+    _loadIfStale();
   }
+
+  @override
+  void didUpdateWidget(_PlaylistCard old) {
+    super.didUpdateWidget(old);
+    if (old.playlist.songCount != playlist.songCount) _loadIfStale();
+  }
+
+  void _loadIfStale() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+    final library = Scope.of(context).library;
+    if (library.details[playlist.id]?.tracks.length != playlist.songCount) {
+      library.loadPlaylist(playlist.id);
+    }
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +328,7 @@ class _PlaylistCardState extends State<_PlaylistCard> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     Text(
-                      '${playlist.songCount} songs',
+                      songCount(playlist.songCount),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -344,7 +353,7 @@ class _PlaylistCardState extends State<_PlaylistCard> {
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   Text(
-                    '${playlist.songCount} songs',
+                    songCount(playlist.songCount),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],

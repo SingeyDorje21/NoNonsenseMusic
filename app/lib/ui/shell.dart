@@ -475,10 +475,16 @@ class _ShellState extends State<Shell> {
                     ),
                   ),
                 ),
-              // Now Playing last: over everything, the phone's bottom bar too (it covered Now Playing's controls)
+              // Now Playing last: over everything, the phone's bottom bar too (it covered Now Playing's controls). Back
+              // closes it rather than the app: it is a layer of this screen, not a page of its own
               ListenableBuilder(
                 listenable: s.player,
-                builder: (context, _) => AnimatedSwitcher(
+                builder: (context, _) => PopScope(
+                  canPop: !s.player.showNowPlaying,
+                  onPopInvokedWithResult: (didPop, _) {
+                    if (!didPop) s.player.setShowNowPlaying(false);
+                  },
+                  child: AnimatedSwitcher(
                   duration: MediaQuery.disableAnimationsOf(context)
                       ? Duration.zero
                       : Duration(milliseconds: phone ? 340 : 180),
@@ -497,6 +503,7 @@ class _ShellState extends State<Shell> {
                       : const SizedBox.shrink(
                           key: ValueKey('closed-now-playing'),
                         ),
+                  ),
                 ),
               ),
             ],

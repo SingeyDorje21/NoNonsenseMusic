@@ -95,6 +95,7 @@ struct PlayerBar: View {
         HStack(spacing: 14) {
             VolumeControl(width: 76, slider: volumeSlider)
             LikeButton(track: track, font: .title3)
+            SongActionsButton(track: track, font: .title3)
             open(.lyrics, symbol: "quote.bubble", help: "Lyrics")
             open(.upNext, symbol: "list.bullet", help: "Up Next")
             open(.none, symbol: "arrow.up.left.and.arrow.down.right", help: "Now Playing (⇧⌘F)")
@@ -222,6 +223,27 @@ enum NowPlayingPanel: String {
     case upNext, lyrics, none
 }
 
+/// Now Playing's volume, like Apple Music: quiet speaker, slider, loud speaker. A view of its own because it reads the
+/// volume: in Now Playing's body, every step of a drag ran that whole body again (#12), as VolumeControl does for the bar.
+private struct NowPlayingVolume: View {
+    @Environment(Player.self) private var player
+    @Environment(ThemeStore.self) private var theme
+    @AppStorage("haptics") private var haptics = true
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "speaker.fill").foregroundStyle(.secondary)
+            Slider(value: Binding(get: { Double(player.volume) }, set: { player.setVolume(Float($0)) }), in: 0...1)
+                .tint(theme.color(.volume))
+                .accessibilityLabel("Volume")
+                // a light tick at every tenth while you drag (Settings › Trackpad › Haptic ticks), as the line does per minute
+                .sensoryFeedback(.alignment, trigger: Int((player.volume * 10).rounded())) { _, _ in haptics }
+            Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
+        }
+        .font(.callout)
+    }
+}
+
 /// Full-window Now Playing: huge artwork (as Jon Hicks asked Apple for), blended background, and a side panel
 /// for Up Next or Lyrics. Click the active panel's button again and the panel goes: the artwork grows into the
 /// centre. The panel you chose is remembered. Esc or a pinch in closes it; the corner button goes full screen.
@@ -231,7 +253,6 @@ struct NowPlayingView: View {
     @AppStorage("nowPlayingBlur") private var surfaceBlur = Look.nowPlayingBlur        // Settings › Appearance › Surfaces › Now Playing
     @AppStorage("nowPlayingSolid") private var surfaceSolid = Look.nowPlayingSolid
     @AppStorage("nowPlayingColour") private var colourStrength = Look.nowPlayingColour
-    @AppStorage("haptics") private var haptics = true
     @Environment(ThemeStore.self) private var theme
     @State private var isFullScreen = NSApp.keyWindow?.styleMask.contains(.fullScreen) ?? false
     private var glow: Color? { theme.color(.playing) }    // the light under the artwork: Settings › Colours › Playing song
@@ -301,6 +322,7 @@ struct NowPlayingView: View {
                     if track.isExplicit { ExplicitBadge().font(.body) }
                     Spacer()
                     LikeButton(track: track, font: .title2)
+                    SongActionsButton(track: track, font: .title2)
                 }
                 // the artist and the album open their pages (Now Playing closes first)
                 ArtistLinks(artists: track.artists) { player.showNowPlaying = false }
@@ -328,19 +350,9 @@ struct NowPlayingView: View {
                 .frame(width: side)
             TransportControls(size: .title, playSize: .system(size: 44), spinnerSize: .regular, modeSize: .title3)
                 .frame(width: side)
-            HStack(spacing: 10) {                     // like Apple Music: quiet speaker, slider, loud speaker
-                Image(systemName: "speaker.fill").foregroundStyle(.secondary)
-                Slider(value: Binding(get: { Double(player.volume) }, set: { player.setVolume(Float($0)) }),
-                       in: 0...1)
-                    .tint(theme.color(.volume))
-                    .accessibilityLabel("Volume")
-                    // a light tick at every tenth while you drag (Settings › Trackpad › Haptic ticks), as the line does per minute
-                    .sensoryFeedback(.alignment, trigger: Int((player.volume * 10).rounded())) { _, _ in haptics }
-                Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
-            }
-            .font(.callout)
-            .frame(width: side * 0.7)
-            .frame(width: side)
+            NowPlayingVolume()
+                .frame(width: side * 0.7)
+                .frame(width: side)
         }
     }
 
@@ -1087,12 +1099,13 @@ struct UpNextView: View {
     }
 
     private var queue: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let entries = player.upNextEntries                 // a copy of the queue's tail: once, not three times (#12)
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Up Next").textStyle(.headline)
                 Spacer()
                 AutoplayButton()
-                if !player.upNextEntries.isEmpty {
+                if !entries.isEmpty {
                     Button("Clear") { withAnimation(.snappy) { player.clearUpNext() } }
                         .buttonStyle(.quiet)
                         .foregroundStyle(.secondary)
@@ -1100,7 +1113,7 @@ struct UpNextView: View {
                 }
             }
             .padding(.horizontal, 16).padding(.top, 16)
-            if player.upNextEntries.isEmpty {
+            if entries.isEmpty {
                 Text("Nothing queued. Play a list, or right-click a song → Play Next or Add to Queue.")
                     .textStyle(.callout).foregroundStyle(.secondary)
                     .padding(.horizontal, 16).padding(.bottom, 16)
@@ -1109,7 +1122,6 @@ struct UpNextView: View {
                 // drag and drop never delivered the drop in here, 7 Oct). Each row is an entry: a song queued twice is two.
                 // One queue: your songs, then Autoplay's under its heading (as in Apple Music); any song can be dragged
                 // anywhere, and which side of the heading it lands on makes it yours or Autoplay's (12 Oct)
-                let entries = player.upNextEntries
                 let mine = entries.prefix { !$0.autoplay }.count
                 let rows: [UpNextItem] = entries.enumerated().map { .song($1, $0) }
                 let items = mine < entries.count ? Array(rows[..<mine]) + [.autoplayHeading] + Array(rows[mine...]) : rows
@@ -1184,6 +1196,9 @@ private struct UpNextRow: View {
         .onHover { hovering = $0 }                         // instant: a fade per hover redrew the window ~15 times
         .contextMenu {
             Button("Play Now", action: play)
+            Divider()
+            SongLibraryActions(track: track)
+            Divider()
             Button("Remove from Up Next", role: .destructive, action: remove)
         }
         .accessibilityElement(children: .combine)

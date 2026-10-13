@@ -9,6 +9,7 @@ import 'copy_menu.dart';
 import 'cover.dart';
 import 'glass.dart';
 import 'jam_panel.dart';
+import 'layout.dart';
 import 'lyrics_panel.dart';
 import 'player_bar.dart';
 import 'scope.dart';
@@ -103,6 +104,10 @@ class NowPlaying extends StatelessWidget {
                                 padding: EdgeInsets.only(left: 8),
                                 child: ExplicitBadge(),
                               ),
+                            // the playing song's heart and its menu (Add to Playlist, Download), as a row has them
+                            const Spacer(),
+                            LikeButton(track: t, size: 22),
+                            SongMoreButton(track: t, size: 22),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -499,26 +504,55 @@ class UpNext extends StatelessWidget {
         final heading = entries.indexWhere(
           (e) => e.autoplay,
         ); // where Autoplay's part begins; -1: none
-        Widget row(Track t, int offset) => GestureDetector(
-          onDoubleTap: () => p.jump(p.queue.index + 1 + offset),
-          child: ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 6),
-            leading: Cover(t.image, size: 36),
-            title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              t.artistLine,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        // A phone taps to play, long-presses for the song's menu and drags by the handle, so a swipe scrolls (the
+        // whole row was draggable: a swipe picked a song up instead, 13 Oct). A mouse double-clicks, right-clicks and
+        // drags the row.
+        Widget row(Track t, int offset, int index) {
+          void play() => p.jump(p.queue.index + 1 + offset);
+          void menu(Offset at) => showSongMenu(
+            context,
+            at,
+            t,
+            play: play,
+            remove: (label: 'Remove from Up Next', run: () => p.removeFromUpNext(offset)),
+          );
+          return GestureDetector(
+            onTap: isTouchDevice ? play : null,
+            onDoubleTap: isTouchDevice ? null : play,
+            onLongPressStart: isTouchDevice ? (d) => menu(d.globalPosition) : null,
+            onSecondaryTapUp: (d) => menu(d.globalPosition),
+            child: ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+              leading: Cover(t.image, size: 36),
+              title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(
+                t.artistLine,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    iconSize: 16,
+                    tooltip: 'Remove from Up Next',
+                    onPressed: () => p.removeFromUpNext(offset),
+                    icon: const Icon(FluentIcons.dismiss_circle_24_filled),
+                  ),
+                  if (isTouchDevice)
+                    ReorderableDragStartListener(
+                      index: index,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(FluentIcons.re_order_dots_vertical_24_regular, size: 20, color: muted),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            trailing: IconButton(
-              iconSize: 16,
-              tooltip: 'Remove from Up Next',
-              onPressed: () => p.removeFromUpNext(offset),
-              icon: const Icon(FluentIcons.dismiss_circle_24_filled),
-            ),
-          ),
-        );
+          );
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -550,7 +584,9 @@ class UpNext extends StatelessWidget {
                   ? Padding(
                       padding: const EdgeInsets.all(6),
                       child: Text(
-                        'Nothing queued. Play a list, or right-click a song → Play Next or Add to Queue.',
+                        isTouchDevice
+                            ? 'Nothing queued. Play a list, or long-press a song → Play Next or Add to Queue.'
+                            : 'Nothing queued. Play a list, or right-click a song → Play Next or Add to Queue.',
                         style: TextStyle(color: muted),
                       ),
                     )
@@ -590,11 +626,10 @@ class UpNext extends StatelessWidget {
                           );
                         }
                         final offset = heading >= 0 && i > heading ? i - 1 : i;
-                        return ReorderableDragStartListener(
-                          key: ValueKey(entries[offset].key),
-                          index: i,
-                          child: row(entries[offset].track, offset),
-                        );
+                        final child = row(entries[offset].track, offset, i);
+                        return isTouchDevice
+                            ? KeyedSubtree(key: ValueKey(entries[offset].key), child: child)
+                            : ReorderableDragStartListener(key: ValueKey(entries[offset].key), index: i, child: child);
                       },
                     ),
             ),

@@ -287,18 +287,24 @@ class Player extends ChangeNotifier implements JamPlayer {
     }
   }
 
+  /// [v] is the slider's place, 0…1; the player is given [gain] of it.
   void setVolume(double v) {
     volume = v.clamp(0, 1);
-    _audio.setVolume(_jamSilent ? 0 : volume);
+    _audio.setVolume(_jamSilent ? 0 : gain(volume));
     notifyListeners();
   }
+
+  /// The gain for a slider place: its cube. Players take a linear gain, but loudness is heard in ratios, so a straight
+  /// line put nearly all of the change in the slider's last stretch (a quarter of the way was still -12 dB, barely
+  /// quieter than full). The cube spreads it out: half is -18 dB, a quarter -36 dB, a tenth -60 dB.
+  static double gain(double place) => place * place * place;
 
   bool _jamSilent = false;
   @override
   void jamSetSilent(bool silent) {
     if (silent == _jamSilent) return;
     _jamSilent = silent;
-    _audio.setVolume(silent ? 0 : volume);
+    _audio.setVolume(silent ? 0 : gain(volume));
   }
 
   void setPanel(String p) => _set(() => panel = panel == p ? 'none' : p);
@@ -338,7 +344,9 @@ class Player extends ChangeNotifier implements JamPlayer {
   @override
   JamCarry? get jamCarry {
     final t = current;
-    return t == null || !isPlaying ? null : JamCarry(t.listings[_copy.clamp(0, t.listings.length - 1)], position);
+    if (t == null || !isPlaying) return null;
+    final playing = t.listings[_copy.clamp(0, t.listings.length - 1)];
+    return JamCarry(playing, position, JamCommand.otherCopies(t, playing: playing));
   }
 
   @override
@@ -567,7 +575,10 @@ class Player extends ChangeNotifier implements JamPlayer {
       return;
     }
     _show("Couldn't play “${t.title}”.");
-    if (jam != null) return jam!.skip(); // the room moves on rather than waiting on a song that will not play
+    // In a jam every member's device plays the room's song: one device's copies failing is that device's alone. A skip
+    // here moved the whole room on for everyone; the room moves on only when it is the host's song that will not play
+    // (as Player.giveUp does on the Mac)
+    if (jam != null) return jam!.songEnded();
     _go(queue.indexAfterNext());
   }
 
