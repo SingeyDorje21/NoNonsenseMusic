@@ -24,3 +24,5 @@ handoff.md
 deploy/
 RUN_WINDOWS.md
 code.txt
+
+graphify-out/
