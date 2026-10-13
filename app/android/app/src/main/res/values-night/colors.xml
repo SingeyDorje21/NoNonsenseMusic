@@ -7,8 +7,7 @@
     <color name="widget_edge">#24FFFFFF</color>
     <color name="widget_ink">#FFF2F2F3</color>
     <color name="widget_muted">#A8F2F2F3</color>
-    <!-- the phone's field fill: #273247 at 35 % -->
-    <color name="widget_tile">#59273247</color>
+    <!-- the cover's tile before a cover loads: white at 10 % -->
+    <color name="widget_tile">#1AFFFFFF</color>
     <color name="widget_accent">#FF60CDFF</color>
-    <color name="widget_on_accent">#FF000000</color>
 </resources>

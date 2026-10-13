@@ -8,9 +8,8 @@
     <color name="widget_ink">#FF16161A</color>
     <!-- bodySmall: the ink at 66 % -->
     <color name="widget_muted">#A816161A</color>
-    <!-- the phone's field fill: white at 64 % -->
-    <color name="widget_tile">#A3FFFFFF</color>
-    <!-- Windows 11's default accent, until a cover gives one -->
+    <!-- the cover's tile before a cover loads: the ink at 8 % -->
+    <color name="widget_tile">#1416161A</color>
+    <!-- Windows 11's default accent, for a liked heart until a cover gives one -->
     <color name="widget_accent">#FF005FB8</color>
-    <color name="widget_on_accent">#FFFFFFFF</color>
 </resources>

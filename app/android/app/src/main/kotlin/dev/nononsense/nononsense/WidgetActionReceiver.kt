@@ -48,10 +48,10 @@ class WidgetActionReceiver : BroadcastReceiver() {
         const val CHANNEL = "nononsense/widget"
         const val EXTRA_PRESS = "press"
 
-        /** `next`, `recent:1`, `tile:<id>` as a link: `nononsense://widget/next`, `.../recent/1`, `.../tile/<id>`. */
+        /** `next` as a link: `nononsense://widget/next`. */
         fun openIntent(context: Context, press: String?): Intent {
             val intent = Intent(context, MainActivity::class.java).setAction(Intent.ACTION_VIEW)
-            if (press != null) intent.data = Uri.parse("nononsense://widget/" + press.split(':').joinToString("/") { Uri.encode(it) })
+            if (press != null) intent.data = Uri.parse("nononsense://widget/" + Uri.encode(press))
             return intent
         }
 

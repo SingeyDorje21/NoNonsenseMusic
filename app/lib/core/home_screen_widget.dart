@@ -12,7 +12,6 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import 'accent.dart';
-import 'api.dart';
 import 'auth.dart';
 import 'download_store.dart';
 import 'library.dart';
@@ -20,90 +19,62 @@ import 'links.dart';
 import 'models.dart';
 import 'player.dart';
 
-/// A press on the widget: `toggle`, `next`, `previous`, `like`, `resume`, `recent` (a row, [arg] 0 to 2) or `tile`
-/// ([arg] a playlist id).
+/// A press on the widget: `toggle`, `next`, `previous`, `back10`, `forward10` (a seek of ten seconds), `like` or
+/// `resume`.
 @immutable
 class WidgetAction {
   final String kind;
-  final String? arg;
-  const WidgetAction(this.kind, [this.arg]);
+  const WidgetAction(this.kind);
 
-  static const _plain = {'toggle', 'next', 'previous', 'like', 'resume'};
+  static const _kinds = {'toggle', 'next', 'previous', 'back10', 'forward10', 'like', 'resume'};
 
-  /// Reads `next`, `recent:1` or `tile:<id>`, as the native widget sends them; null for anything else.
-  static WidgetAction? parse(String s) {
-    if (_plain.contains(s)) return WidgetAction(s);
-    final i = s.indexOf(':');
-    if (i < 0) return null;
-    final kind = s.substring(0, i), arg = s.substring(i + 1);
-    if (kind == 'recent') {
-      final row = int.tryParse(arg);
-      return row != null && row >= 0 && row < HomeWidgetState.recentRows ? WidgetAction(kind, arg) : null;
-    }
-    if (kind == 'tile' && arg.isNotEmpty) return WidgetAction(kind, arg);
-    return null;
-  }
+  /// Reads `next`, as the native widget sends it; null for anything else.
+  static WidgetAction? parse(String s) => _kinds.contains(s) ? WidgetAction(s) : null;
 
-  /// A press that had to start the app: `nononsense://widget/next`, `.../recent/1`, `.../tile/<id>`.
+  /// A press that started the app: `nononsense://widget/next`.
   static WidgetAction? fromUri(Uri uri) {
     if (!uri.scheme.startsWith('nononsense') || uri.host != 'widget') return null;
     final parts = uri.pathSegments.where((p) => p.isNotEmpty).toList();
-    if (parts.isEmpty || parts.length > 2) return null;
-    return parse(parts.join(':'));
+    return parts.length == 1 ? parse(parts.single) : null;
   }
 
   @override
-  bool operator ==(Object other) => other is WidgetAction && other.kind == kind && other.arg == arg;
+  bool operator ==(Object other) => other is WidgetAction && other.kind == kind;
   @override
-  int get hashCode => Object.hash(kind, arg);
+  int get hashCode => kind.hashCode;
   @override
-  String toString() => arg == null ? kind : '$kind:$arg';
+  String toString() => kind;
 }
 
 /// What the widget draws, as the plain map it is stored as.
 abstract final class HomeWidgetState {
-  static const recentRows = 3;
-  static const tileCount = 4;
-
-  /// The quick-start tiles: the pinned albums, then the user's own playlists, in the app's order.
-  static List<PlaylistSummary> tiles(Iterable<PlaylistSummary> playlists) => [
-        ...playlists.where((p) => p.isOwner && p.isAlbum),
-        ...playlists.where((p) => p.isOwner && !p.isAlbum),
-      ].take(tileCount).toList();
-
   /// Nothing loaded: the song shown is the latest play, which Play resumes (no queue is kept between launches).
   /// Signed out, nothing of the account is sent.
   ///
-  /// [song] is the playing cover's colour ([Accent]): the widget's play button and heart take it, made readable on
-  /// each theme as the app's own accent is (buildTheme). Null (a grey cover, or none) leaves the widget's default
-  /// blue.
+  /// [song] is the playing cover's colour ([Accent]): the widget's heart takes it, made readable on each theme as the
+  /// app's own accent is (buildTheme). Null (a grey cover, or none) leaves the widget's default blue.
   static Map<String, Object?> of({
     required bool signedIn,
     required Track? current,
     required bool playing,
     required bool liked,
     required List<Track> recent,
-    required List<PlaylistSummary> tiles,
     required String? coverPath,
     Color? song,
   }) {
     if (!signedIn) return {'signedIn': false};
     final shown = current ?? recent.firstOrNull;
-    Color on(Color c) => ThemeData.estimateBrightnessForColor(c) == Brightness.dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
-    final light = song == null ? null : Accent.readable(song, Brightness.light);
-    final dark = song == null ? null : Accent.readable(song, Brightness.dark);
     return {
-      if (light != null && dark != null)
-        'accent': {'light': light.toARGB32(), 'dark': dark.toARGB32(), 'onLight': on(light).toARGB32(), 'onDark': on(dark).toARGB32()},
+      if (song != null)
+        'accent': {'light': Accent.readable(song, Brightness.light).toARGB32(), 'dark': Accent.readable(song, Brightness.dark).toARGB32()},
       'signedIn': true,
       'title': shown?.title,
       'artist': shown?.artistLine,
+      'album': shown?.albumTitle,
       'cover': coverPath,
       'playing': current != null && playing,
       'liked': current != null && liked,
       'resume': current == null && shown != null,
-      'recent': [for (final t in recent.take(recentRows)) {'title': t.title, 'artist': t.artistLine}],
-      'tiles': [for (final p in tiles) {'id': p.id, 'name': p.name}],
     };
   }
 }
@@ -160,11 +131,11 @@ class HomeScreenWidget {
     });
   }
 
-  /// A press that started the app waits for the account, and a recent row for the library to load.
+  /// A press that started the app waits for the account, and a resume for the library to load.
   void _runPending() {
     final a = PlaylistLinks.widgetPress.value;
     if (a == null || auth.user == null) return;
-    if ((a.kind == 'recent' || a.kind == 'resume' || a.kind == 'toggle') && library.recent.isEmpty) return;
+    if ((a.kind == 'resume' || a.kind == 'toggle') && library.recent.isEmpty) return;
     PlaylistLinks.widgetPress.value = null;
     unawaited(run(a));
   }
@@ -172,29 +143,26 @@ class HomeScreenWidget {
   Future<void> run(WidgetAction a) async {
     switch (a.kind) {
       case 'toggle':
-        player.current == null ? _playRecent(0) : player.togglePlayPause();
+        player.current == null ? _resume() : player.togglePlayPause();
       case 'next':
         await player.next();
       case 'previous':
         await player.previous();
+      case 'back10':
+        if (player.current != null) await player.seekBy(-10);
+      case 'forward10':
+        if (player.current != null) await player.seekBy(10);
       case 'like':
         final t = player.current;
         if (t != null) await library.toggleLike(t);
       case 'resume':
-        _playRecent(0);
-      case 'recent':
-        _playRecent(int.parse(a.arg!));
-      case 'tile':
-        final id = a.arg!;
-        if (!await library.loadPlaylist(id)) return;
-        final d = library.details[id];
-        if (d != null && d.items.isNotEmpty) player.play(d.tracks, keys: d.keys, source: d.queueSource, wholeList: true);
+        _resume();
     }
   }
 
-  void _playRecent(int i) {
+  void _resume() {
     final recent = library.recent.map((s) => s.track).toList();
-    if (i < recent.length) player.play(recent, startAt: i);
+    if (recent.isNotEmpty) player.play(recent);
   }
 
   Future<void> _write() async {
@@ -208,7 +176,6 @@ class HomeScreenWidget {
       playing: player.isPlaying,
       liked: current != null && library.isLiked(current),
       recent: recent,
-      tiles: HomeWidgetState.tiles(library.playlists),
       coverPath: cover,
       song: accent.value,
     ));
